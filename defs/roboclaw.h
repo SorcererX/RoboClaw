@@ -4,11 +4,8 @@
 #include <stdarg.h>
 
 #include <inttypes.h>
-#include <Stream.h>
-#include <HardwareSerial.h>
-#ifdef __AVR__
-	#include <SoftwareSerial.h>
-#endif
+#include <unistd.h>
+#include <string>
 
 /******************************************************************************
 * Definitions
@@ -21,16 +18,8 @@
 
 #define _SS_VERSION 16
 
-class RoboClaw : public Stream
-{
-	uint16_t crc;
-	uint32_t timeout;
-	
-	HardwareSerial *hserial;
-#ifdef __AVR__
-	SoftwareSerial *sserial;
-#endif
-	
+class RoboClaw
+{	
 	enum {M1FORWARD = 0,
 			M1BACKWARD = 1,
 			SETMINMB = 2,
@@ -125,10 +114,7 @@ class RoboClaw : public Stream
 			FLAGBOOTLOADER = 255};	//Only available via USB communications
 public:
 	// public methods
-	RoboClaw(HardwareSerial *hserial,uint32_t tout);
-#ifdef __AVR__
-	RoboClaw(SoftwareSerial *sserial,uint32_t tout);
-#endif
+    RoboClaw( uint32_t a_timeout );
 	
 	~RoboClaw();
 
@@ -226,10 +212,9 @@ public:
 	
 	static int16_t library_version() { return _SS_VERSION; }
 
-	virtual int available();
+    int available();
 	void begin(long speed);
-	bool isListening();
-	bool overflow();
+    void end();
 	int peek();
 	virtual int read();
 	int read(uint32_t timeout);
@@ -238,7 +223,7 @@ public:
 	virtual void flush();
 	void clear();
 
-private:
+protected:
 	void crc_clear();
 	void crc_update (uint8_t data);
 	uint16_t crc_get();
@@ -248,6 +233,14 @@ private:
 	uint32_t Read4(uint8_t address,uint8_t cmd,bool *valid);
 	uint16_t Read2(uint8_t address,uint8_t cmd,bool *valid);
 	uint8_t Read1(uint8_t address,uint8_t cmd,bool *valid);
+
+private:
+    std::string m_portName;
+    uint16_t m_crc;
+    uint32_t m_timeout;
+
+    int m_serial;
+    FILE* m_serialFile;
 	
 };
 
