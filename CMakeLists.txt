@@ -20,3 +20,5 @@ set( HEADER_FILES
      ${CMAKE_SOURCE_DIR}/defs/roboclaw.h )
 add_library(${PROJECT_NAME} ${SRC_LIST} ${HEADER_FILES})
 target_link_libraries( ${PROJECT_NAME} )
+install( TARGETS ${PROJECT_NAME} DESTINATION lib )
+install( FILES ${HEADER_FILES} DESTINATION include )
