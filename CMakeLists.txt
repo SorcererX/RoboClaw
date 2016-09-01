@@ -18,5 +18,5 @@ aux_source_directory(src SRC_LIST)
 include_directories(defs)
 set( HEADER_FILES
      ${CMAKE_SOURCE_DIR}/defs/roboclaw.h )
-add_executable(${PROJECT_NAME} ${SRC_LIST} ${HEADER_FILES})
-target_link_libraries( ${PROJECT_NAME} -lrt )
+add_library(${PROJECT_NAME} ${SRC_LIST} ${HEADER_FILES})
+target_link_libraries( ${PROJECT_NAME} )
