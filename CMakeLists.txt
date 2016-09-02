@@ -1,6 +1,8 @@
 project(RoboClaw)
 cmake_minimum_required(VERSION 3.0)
 
+set(BUILD_EXAMPLES ON CACHE BOOL "Build examples")
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -O3 -g -DCV_SSE2")
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -g -O0")
 
@@ -13,6 +15,8 @@ elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
 elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
   # N/A
 endif()
+
+add_subdirectory(examples)
 
 aux_source_directory(src SRC_LIST)
 include_directories(defs)
