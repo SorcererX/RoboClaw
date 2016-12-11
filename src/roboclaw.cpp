@@ -8,6 +8,9 @@
 #include <cstring>
 #include <cstdio>
 
+#include <iostream>
+
+
 #define MAXRETRY 2
 #define SetDWORDval(arg) (uint8_t)(((uint32_t)arg)>>24),(uint8_t)(((uint32_t)arg)>>16),(uint8_t)(((uint32_t)arg)>>8),(uint8_t)arg
 #define SetWORDval(arg) (uint8_t)(((uint16_t)arg)>>8),(uint8_t)arg
@@ -38,7 +41,6 @@ RoboClaw::~RoboClaw()
 void RoboClaw::init()
 {
     m_serial     = -1;
-    m_serialFile = NULL;
 }
 
 
@@ -55,15 +57,6 @@ void RoboClaw::begin(long speed)
             return ;
         }
 
-        m_serialFile = fdopen( m_serial, "r+" );
-
-        if( m_serialFile == NULL )
-        {
-            perror( "Unable to open serial file." );
-            return ;
-        }
-
-        // todo set baud speed
         struct termios tty;
         memset( &tty, 0, sizeof( tty ) );
 
@@ -118,7 +111,7 @@ void RoboClaw::begin(long speed)
 
         while( available() > 0 )
         {
-            read( 5000 );
+            read( m_timeout );
         }
 
         fcntl( m_serial, F_SETFL, 0 );
@@ -132,14 +125,8 @@ void RoboClaw::end()
         close( m_serial );
         m_serial = -1;
     }
-
-    if( m_serialFile )
-    {
-        fclose( m_serialFile );
-        m_serialFile = NULL;
-    }
 }
-
+/*
 int RoboClaw::peek()
 {
     int value;
@@ -149,22 +136,23 @@ int RoboClaw::peek()
         ungetc( value, m_serialFile );
     }
 }
+*/
 
 size_t RoboClaw::write(uint8_t byte)
 {
-    if( m_serialFile )
+    if( m_serial )
     {
-        return fwrite( &byte, 1, 1, m_serialFile );
+        return ::write( m_serial, &byte, 1 );
     }
     return 0;
 }
 
-int RoboClaw::read()
+uint8_t RoboClaw::read()
 {
-    int value = 0;
-    if( m_serialFile )
+    uint8_t value = 0;
+    if( m_serial )
     {
-        return fread( &value, 1, 1, m_serialFile );
+        ::read( m_serial, &value, 1 );
     }
     return value;
 }
@@ -172,19 +160,19 @@ int RoboClaw::read()
 int RoboClaw::available()
 {   
     int available_bytes = 0;
-    return ioctl( m_serial, FIONREAD, &available_bytes );
+    ioctl( m_serial, FIONREAD, &available_bytes );
     return available_bytes;
 }
 
 void RoboClaw::flush()
 {
-    if( m_serialFile )
+    if( m_serial )
     {
-        fflush( m_serialFile );
+        tcflush( m_serial, TCIOFLUSH );
     }
 }
 
-int RoboClaw::read(uint32_t timeout)
+uint8_t RoboClaw::read(uint32_t timeout)
 {
     if( m_serial )
     {
@@ -206,7 +194,7 @@ int RoboClaw::read(uint32_t timeout)
 
 void RoboClaw::clear()
 {
-    // TODO: read everything on serial port
+    // read everything on serial port.
     if( m_serial )
     {
         while( available() )
@@ -703,7 +691,6 @@ bool RoboClaw::ReadVersion( char *version)
         crc_update( m_address );
         write(GETVERSION);
         crc_update(GETVERSION);
-
         uint8_t i;
         for(i=0;i<48;i++)
         {
