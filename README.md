@@ -1,2 +1,5 @@
 # RoboClaw
-This is an attempt at porting RoboClaw's android C implementation to Linux.
+A port of Ion Motion RoboClaw's C library for Arduino to Linux.
+
+Known missing features vs. the original:
+-peek()
