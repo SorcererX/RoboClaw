@@ -5,7 +5,7 @@ int main()
 {
     RoboClaw test( "/dev/ttyACM0", 5, 0x80 );
     char version[512];
-    test.begin( B1152000 );
+    test.begin( B115200 );
 
     test.ReadVersion( version );
     std::cout << "ReadVersion: " << version << std::flush;
