@@ -1,0 +1,41 @@
+Checks: >
+  bugprone-*,
+  cppcoreguidelines-*,
+  misc-*,
+  modernize-*,
+  performance-*,
+  portability-*,
+  readability-*,
+  clang-analyzer-*,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -cppcoreguidelines-pro-bounds-constant-array-index,
+  -cppcoreguidelines-pro-type-reinterpret-cast,
+  -cppcoreguidelines-avoid-non-const-global-variables,
+  -modernize-use-trailing-return-type,
+  -readability-uppercase-literal-suffix,
+  -readability-magic-numbers,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -modernize-use-auto,
+  -modernize-avoid-c-arrays,
+  -modernize-use-using,
+  -cppcoreguidelines-avoid-c-arrays,
+  -bugprone-easily-swappable-parameters
+
+CheckOptions:
+  - { key: readability-identifier-naming.NamespaceCase,          value: lower_case }
+  - { key: readability-identifier-naming.NamespaceIgnoredRegexp, value: Ui }
+  - { key: readability-identifier-naming.ClassCase,              value: CamelCase  }
+  - { key: readability-identifier-naming.StructCase,             value: lower_case }
+  - { key: readability-identifier-naming.TemplateParameterCase,  value: CamelCase  }
+  - { key: readability-identifier-naming.FunctionCase,           value: camelBack  }
+  - { key: readability-identifier-naming.GlobalFunctionCase,     value: lower_case  }
+  - { key: readability-identifier-naming.MemberConstantCase,       value: camelBack }
+  - { key: readability-identifier-naming.MemberConstantPrefix,     value: m_        }
+  - { key: readability-identifier-naming.StaticConstantCase,       value: camelBack }
+  - { key: readability-identifier-naming.StaticConstantPrefix,     value: sm_       }
+  - { key: readability-identifier-naming.ParameterPrefix,          value: a_        }
+  - { key: readability-identifier-naming.MemberPrefix,             value: m_        }
+  - { key: readability-implicit-bool-conversion.AllowPointerConditions, value: true }
+  - { key: readability-identifier-length.MinimumVariableNameLength, value: 2 }
+  - { key: readability-identifier-length.MinimumLoopCounterNameLength, value: 1 }
+  - { key: misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic, value: true }
