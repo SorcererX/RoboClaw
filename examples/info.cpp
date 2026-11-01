@@ -1,31 +1,37 @@
 #include <roboclaw.h>
 #include <iostream>
+#include <ostream>
+#include <termios.h>
 
 int main()
 {
     RoboClaw test( "/dev/ttyACM0", 5, 0x80 );
-    char version[512];
     test.begin( B115200 );
 
-    test.ReadVersion( version );
-    std::cout << "ReadVersion: " << version << std::flush;
+    if( const auto version = test.readVersion() )
+    {
+        std::cout << "ReadVersion: " << *version << std::flush;
+    }
 
-    float Kp, Ki, Kd;
-    uint32_t qpps;
+    if( const auto pid = test.readM1VelocityPID() )
+    {
+        std::cout << "M1 Velocity PID: (" << pid->kp << "," << pid->ki << "," << pid->kd << ") QPPS:" << pid->qpps << '\n';
+    }
 
-    test.ReadM1VelocityPID( Kp, Ki, Kd, qpps );
-    std::cout << "M1 Velocity PID: (" << Kp << "," << Ki << "," << Kd << ") QPPS:" << qpps << std::endl;
+    if( const auto pid = test.readM2VelocityPID() )
+    {
+        std::cout << "M2 Velocity PID: (" << pid->kp << "," << pid->ki << "," << pid->kd << ") QPPS:" << pid->qpps << '\n';
+    }
 
-    test.ReadM2VelocityPID( Kp, Ki, Kd, qpps );
-    std::cout << "M2 Velocity PID: (" << Kp << "," << Ki << "," << Kd << ") QPPS:" << qpps << std::endl;
+    if( const auto voltage = test.readMainBatteryVoltage() )
+    {
+        std::cout << "Main Battery Voltage: " << *voltage / 10.0 << " V" << '\n';
+    }
 
-    bool valid;
-    uint16_t voltage = test.ReadMainBatteryVoltage( &valid );
-    std::cout << "Main Battery Voltage: " << voltage/10.0 << " V" << std::endl;
-
-    uint16_t temperature;
-    valid = test.ReadTemp( temperature );
-    std::cout << "Temperature: " << temperature/10.0 << " C" << std::endl;
+    if( const auto temperature = test.readTemp() )
+    {
+        std::cout << "Temperature: " << *temperature / 10.0 << " C" << '\n';
+    }
 
     test.end();
 }

@@ -35,6 +35,7 @@ CheckOptions:
   - { key: readability-identifier-naming.StaticConstantPrefix,     value: sm_       }
   - { key: readability-identifier-naming.ParameterPrefix,          value: a_        }
   - { key: readability-identifier-naming.MemberPrefix,             value: m_        }
+  - { key: readability-identifier-naming.PublicMemberCase,         value: camelBack        }
   - { key: readability-implicit-bool-conversion.AllowPointerConditions, value: true }
   - { key: readability-identifier-length.MinimumVariableNameLength, value: 2 }
   - { key: readability-identifier-length.MinimumLoopCounterNameLength, value: 1 }
