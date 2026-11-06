@@ -12,6 +12,7 @@
 
 #include <asm-generic/ioctls.h>
 #include <fcntl.h>
+#include <sys/file.h>
 #include <sys/ioctl.h>
 #include <termios.h>
 #include <unistd.h>
@@ -89,6 +90,15 @@ void RoboClaw::begin( speed_t a_speed )
         if( m_serial == -1 )
         {
             perror( "Unable to open serial device." );
+            return;
+        }
+
+        // Two processes on one port take each other's replies, so only one may have it.
+        if( flock( m_serial, LOCK_EX | LOCK_NB ) != 0 )
+        {
+            perror( "Serial device is already in use." );
+            close( m_serial );
+            m_serial = -1;
             return;
         }
 
