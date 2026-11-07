@@ -488,19 +488,19 @@ public:
     bool speedAccelDistanceM1M2Separate( uint32_t a_accel1, uint32_t a_speed1, uint32_t a_distance1, uint32_t a_accel2, uint32_t a_speed2, uint32_t a_distance2, uint8_t a_flag = 0 );
     /// @brief Ramps M1 to a duty cycle.
     /// @param a_duty Signed duty cycle sent as two's complement, where 32767 is 100 % forward.
-    /// @param a_accel Acceleration in pulses per second squared.
+    /// @param a_accel Duty change per second, 32767 ramps from 0 to 100 % in one second.
     /// @return True if the controller acknowledged the command.
     bool dutyAccelM1( uint16_t a_duty, uint32_t a_accel );
     /// @brief Ramps M2 to a duty cycle.
     /// @param a_duty Signed duty cycle sent as two's complement, where 32767 is 100 % forward.
-    /// @param a_accel Acceleration in pulses per second squared.
+    /// @param a_accel Duty change per second, 32767 ramps from 0 to 100 % in one second.
     /// @return True if the controller acknowledged the command.
     bool dutyAccelM2( uint16_t a_duty, uint32_t a_accel );
     /// @brief Ramps both motors to duty cycles in one command.
     /// @param a_duty1 M1 duty cycle, see dutyM1().
-    /// @param a_accel1 M1 acceleration in pulses per second squared.
+    /// @param a_accel1 M1 acceleration as duty change per second, 32767 ramps from 0 to 100 % in one second.
     /// @param a_duty2 M2 duty cycle, see dutyM1().
-    /// @param a_accel2 M2 acceleration in pulses per second squared.
+    /// @param a_accel2 M2 acceleration as duty change per second, 32767 ramps from 0 to 100 % in one second.
     /// @return True if the controller acknowledged the command.
     bool dutyAccelM1M2( uint16_t a_duty1, uint32_t a_accel1, uint16_t a_duty2, uint32_t a_accel2 );
     /// @brief Reads the M1 velocity PID.
