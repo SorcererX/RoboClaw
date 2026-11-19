@@ -1,4 +1,5 @@
 #include "roboclaw.h"
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <concepts>
@@ -9,9 +10,11 @@
 #include <span>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include <asm-generic/ioctls.h>
 #include <fcntl.h>
+#include <poll.h>
 #include <sys/file.h>
 #include <sys/ioctl.h>
 #include <termios.h>
@@ -145,6 +148,10 @@ void RoboClaw::begin( speed_t a_speed )
         tty.c_lflag &= ~static_cast< tcflag_t >( NOFLSH ); // disable flushing on SIGINT
         tty.c_lflag &= ~static_cast< tcflag_t >( IEXTEN ); // disable input processing
 
+        // A read waits for at least one byte and returns all that have arrived, with no timer of its own.
+        tty.c_cc[ VMIN ] = 1;
+        tty.c_cc[ VTIME ] = 0;
+
         if( tcsetattr( m_serial, TCSANOW, &tty ) != 0 )
         {
             perror( "tcsetattr failed with error:" );
@@ -173,35 +180,57 @@ void RoboClaw::end()
 
 size_t RoboClaw::write( uint8_t a_byte )
 {
-    if( m_serial != -1 )
+    return write( std::span( &a_byte, 1 ) );
+}
+
+size_t RoboClaw::write( std::span< const uint8_t > a_bytes )
+{
+    if( m_serial == -1 )
     {
-        return ::write( m_serial, &a_byte, 1 );
+        return 0;
     }
-    return 0;
+    // One call for the whole packet, so it goes out in one USB transfer. A tty can take less than all of it.
+    size_t written = 0;
+    while( written < a_bytes.size() )
+    {
+        const ssize_t result = ::write( m_serial, a_bytes.data() + written, a_bytes.size() - written );
+        if( result <= 0 )
+        {
+            break;
+        }
+        written += static_cast< size_t >( result );
+    }
+    return written;
+}
+
+bool RoboClaw::fillReceived() const
+{
+    // Everything that has arrived is taken in one call, the reply is then read from here byte by byte.
+    const ssize_t count = ::read( m_serial, m_received.data(), m_received.size() );
+    m_receivedStart = 0;
+    m_receivedEnd = count > 0 ? static_cast< size_t >( count ) : 0;
+    return m_receivedEnd > 0;
 }
 
 uint8_t RoboClaw::read() const
 {
-    uint8_t value = 0;
-    if( m_serial != -1 )
+    if( m_serial == -1 || ( m_receivedStart == m_receivedEnd && !fillReceived() ) )
     {
-        if( ::read( m_serial, &value, 1 ) != 1 )
-        {
-            return 0;
-        }
+        return 0;
     }
-    return value;
+    return m_received[ m_receivedStart++ ];
 }
 
 int RoboClaw::available() const
 {
     int available_bytes = 0;
     ioctl( m_serial, FIONREAD, &available_bytes ); // NOLINT(cppcoreguidelines-pro-type-vararg): C API
-    return available_bytes;
+    return available_bytes + static_cast< int >( m_receivedEnd - m_receivedStart );
 }
 
 void RoboClaw::flush()
 {
+    m_receivedStart = m_receivedEnd = 0;
     if( m_serial != -1 )
     {
         tcflush( m_serial, TCIOFLUSH );
@@ -212,15 +241,22 @@ int16_t RoboClaw::read( uint32_t a_timeout ) const
 {
     if( m_serial != -1 )
     {
-        const auto start = std::chrono::steady_clock::now();
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds( a_timeout );
 
-        // Empty buffer?
-        while( available() == 0 )
+        // Sleeps until a byte arrives instead of checking in a loop, the reply to a command takes a fraction of
+        // a millisecond over USB and the thread is woken as soon as it is there.
+        while( m_receivedStart == m_receivedEnd && available() == 0 )
         {
-            if( std::chrono::steady_clock::now() - start >= std::chrono::milliseconds( a_timeout ) )
+            const auto remaining = deadline - std::chrono::steady_clock::now();
+            if( remaining <= std::chrono::steady_clock::duration::zero() )
             {
                 return -1;
             }
+            const auto nanoseconds = std::chrono::duration_cast< std::chrono::nanoseconds >( remaining ).count();
+            const timespec wait{ .tv_sec = static_cast< time_t >( nanoseconds / 1'000'000'000 ), .tv_nsec = static_cast< long >( nanoseconds % 1'000'000'000 ) };
+            pollfd port{ .fd = m_serial, .events = POLLIN, .revents = 0 };
+            // Interrupted by a signal or woken without data, the time left is checked again.
+            static_cast< void >( ppoll( &port, 1, &wait, nullptr ) );
         }
         return read();
     }
@@ -230,6 +266,7 @@ int16_t RoboClaw::read( uint32_t a_timeout ) const
 void RoboClaw::clear() const
 {
     // read everything on serial port.
+    m_receivedStart = m_receivedEnd = 0;
     if( m_serial != -1 )
     {
         while( available() != 0 )
@@ -265,32 +302,34 @@ uint16_t RoboClaw::crcGet() const
     return m_crc;
 }
 
-void RoboClaw::sendByte( uint8_t a_byte )
-{
-    crcUpdate( a_byte );
-    write( a_byte );
-}
-
 void RoboClaw::sendCommand( Command a_cmd )
 {
     flush();
     crcClear();
-    sendByte( m_address );
-    sendByte( std::to_underlying( a_cmd ) );
+    const std::array< uint8_t, 2 > command{ m_address, std::to_underlying( a_cmd ) };
+    for( const uint8_t byte : command )
+    {
+        crcUpdate( byte );
+    }
+    write( command );
 }
 
 void RoboClaw::sendPacket( Command a_cmd, std::span< const uint8_t > a_payload )
 {
+    // Address, command, payload and CRC.
+    std::vector< uint8_t > packet( a_payload.size() + 4 );
+    packet[ 0 ] = m_address;
+    packet[ 1 ] = std::to_underlying( a_cmd );
+    std::ranges::copy( a_payload, packet.begin() + 2 );
     crcClear();
-    sendByte( m_address );
-    sendByte( std::to_underlying( a_cmd ) );
-    for( const uint8_t byte : a_payload )
+    for( size_t index = 0; index < packet.size() - 2; index++ )
     {
-        sendByte( byte );
+        crcUpdate( packet[ index ] );
     }
     const uint16_t crc = crcGet();
-    write( static_cast< uint8_t >( crc >> 8 ) );
-    write( static_cast< uint8_t >( crc ) );
+    packet[ packet.size() - 2 ] = static_cast< uint8_t >( crc >> 8 );
+    packet[ packet.size() - 1 ] = static_cast< uint8_t >( crc );
+    write( packet );
 }
 
 bool RoboClaw::writeN( Command a_cmd, std::span< const uint8_t > a_payload )

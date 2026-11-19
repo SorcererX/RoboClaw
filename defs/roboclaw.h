@@ -785,8 +785,12 @@ public:
     [[nodiscard]] int16_t read( uint32_t a_timeout ) const;
     /// @brief Writes one byte to the serial port.
     /// @param a_byte Byte to write.
-    /// @return The result of the write call, or 0 if the port is closed.
-    virtual size_t write( uint8_t a_byte );
+    /// @return The number of bytes written, 0 if the port is closed.
+    size_t write( uint8_t a_byte );
+    /// @brief Writes bytes to the serial port in one call, so a packet goes out in one USB transfer.
+    /// @param a_bytes Bytes to write.
+    /// @return The number of bytes written, less than all of them if the write failed.
+    virtual size_t write( std::span< const uint8_t > a_bytes );
     /// @brief Discards unsent and unread serial data.
     virtual void flush();
     /// @brief Reads and discards everything waiting on the serial port.
@@ -801,9 +805,6 @@ protected:
     /// @brief Gets the running CRC.
     /// @return The running CRC.
     [[nodiscard]] uint16_t crcGet() const;
-    /// @brief Sends a byte and adds it to the running CRC.
-    /// @param a_byte Byte to send.
-    void sendByte( uint8_t a_byte );
     /// @brief Clears the serial buffers and sends the address and a read command.
     /// @param a_cmd Command to send.
     void sendCommand( Command a_cmd );
@@ -848,7 +849,15 @@ protected:
     bool writeSlow( Command a_cmd, std::span< const uint8_t > a_payload = {} );
 
 private:
+    /// @brief Reads everything that has arrived into the receive buffer, waiting for at least one byte.
+    /// @return False if nothing could be read.
+    bool fillReceived() const;
+
     std::string m_portName;
+    // Bytes read from the port but not returned by read() yet.
+    mutable std::array< uint8_t, 64 > m_received{};
+    mutable size_t m_receivedStart{ 0 };
+    mutable size_t m_receivedEnd{ 0 };
 
     uint16_t m_crc{ 0 };
     uint32_t m_timeout;
